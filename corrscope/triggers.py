@@ -437,7 +437,7 @@ class CorrelationTrigger(MainTrigger):
     # end setup
 
     # begin per-frame
-    def get_trigger(self, index: int, cache: "PerFrameCache") -> TriggerResult:
+    def get_trigger(self, pos: int, cache: "PerFrameCache") -> TriggerResult:
         cfg = self.cfg
 
         stride = self._stride
@@ -452,7 +452,7 @@ class CorrelationTrigger(MainTrigger):
         data_nsubsmp = self.A + self._trigger_diameter + self.B
 
         trigger_begin = max(
-            index - self._smp_per_frame, index - self._trigger_diameter // 2
+            pos - self._smp_per_frame, pos - self._trigger_diameter // 2
         )
         data_begin = trigger_begin - stride * self.A
 
