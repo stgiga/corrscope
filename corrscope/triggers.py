@@ -577,6 +577,25 @@ class CorrelationTrigger(MainTrigger):
                 True,
             )
 
+            # Only permit local maxima. This fixes triggering errors where the edge
+            # of the allowed range has higher correlation than edges in-bounds,
+            # but isn't a rising edge itself (a local maximum of alignment).
+            orig = corr.copy()
+            corr[:-1] *= orig[:-1] > orig[1:]
+            corr[1:] *= orig[1:] > orig[:-1]
+            corr[0] = corr[-1] = 0
+
+            self.custom_line(
+                "minicorr_local",
+                corr,
+                np.arange(
+                    trigger_begin + stride * (begin_offset),
+                    trigger_begin + stride * (begin_offset + len(corr)),
+                    stride,
+                ),
+                True,
+            )
+
             # Find optimal offset
             peak_offset = np.argmax(corr) + begin_offset  # type: int
             return peak_offset
