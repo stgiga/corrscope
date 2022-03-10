@@ -531,13 +531,15 @@ class CorrelationTrigger(MainTrigger):
                 corr = corr[left:right]
                 begin_offset = left
 
+            min_val = np.min(corr)
+
             # Only permit local maxima. This fixes triggering errors where the edge
             # of the allowed range has higher correlation than edges in-bounds,
             # but isn't a rising edge itself (a local maximum of alignment).
             orig = corr.copy()
-            corr[:-1] *= orig[:-1] >= orig[1:]
-            corr[1:] *= orig[1:] >= orig[:-1]
-            corr[0] = corr[-1] = 0
+            corr[:-1][orig[:-1] < orig[1:]] = min_val
+            corr[1:][orig[1:] < orig[:-1]] = min_val
+            corr[0] = corr[-1] = min_val
 
             # Find optimal offset
             peak_offset = np.argmax(corr) + begin_offset  # type: int
