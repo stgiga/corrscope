@@ -157,10 +157,10 @@ class _Trigger(ABC, Generic[result]):
             name, self._wave_idx, self._stride, x, offset=offset
         )
 
-    def offset_viewport(self, offset: int):
+    def move_viewport(self, offset: int):
         if self._renderer is None:
             return
-        self._renderer.offset_viewport(self._wave_idx, offset)
+        self._renderer.move_viewport(self._wave_idx, offset)
 
     @abstractmethod
     def get_trigger(self, index: int, cache: "PerFrameCache") -> result:
@@ -534,7 +534,7 @@ class CorrelationTrigger(MainTrigger):
 
         self._frames_since_spectrum += 1
 
-        self.offset_viewport(peak_offset)
+        self.move_viewport(peak_offset)
 
         # period: subsmp/cyc
         freq_estimate = self.subsmp_per_s / period if period else None

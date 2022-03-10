@@ -961,7 +961,7 @@ class RendererFrontend(_RendererBackend, ABC):
         line.xdata = [x * stride] * 2
         line.set_xdata(line.xdata)
 
-    def offset_viewport(self, wave_idx: int, viewport_offset: float):
+    def move_viewport(self, wave_idx: int, viewport_offset: float):
         line_offset = -viewport_offset
 
         for line in self._absolute[wave_idx]:
