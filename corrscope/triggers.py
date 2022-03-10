@@ -473,10 +473,24 @@ class CorrelationTrigger(MainTrigger):
         # Remove mean from data
         data -= np.add.reduce(data) / data.size
 
+        self.custom_line(
+            "data",
+            data,
+            np.arange(data_begin, data_begin + stride * data_nsubsmp, stride),
+            True,
+        )
+
         # Use period to recompute slope finder (if enabled) and restrict trigger
         # diameter.
         period = get_period(data, self.subsmp_per_s, self.cfg.max_freq, self)
         cache.period = period * stride
+
+        self.custom_line(
+            "period",
+            np.array([-0.9, -0.9]),
+            np.array([-cache.period / 2, cache.period / 2]),
+            False,
+        )
 
         semitones = self._is_window_invalid(period)
         # If pitch changed...
@@ -508,6 +522,20 @@ class CorrelationTrigger(MainTrigger):
         else:
             trigger_radius = None
 
+        self.custom_line(
+            "kernel",
+            corr_kernel,
+            np.arange(-self.A, self.B) * stride,
+            False,
+        )
+
+        self.custom_line(
+            "allowed",
+            corr_kernel,
+            np.arange(-self.A, self.B) * stride,
+            True,
+        )
+
         def correlate_valid(
             data: np.ndarray, corr_kernel: np.ndarray, radius: Optional[int]
         ) -> int:
@@ -521,6 +549,13 @@ class CorrelationTrigger(MainTrigger):
             corr = signal.correlate_valid(data, corr_kernel)
             begin_offset = 0
 
+            self.custom_line(
+                "corr",
+                corr,
+                np.arange(trigger_begin, trigger_begin + stride * len(corr), stride),
+                True,
+            )
+
             if radius is not None:
                 Ncorr = len(corr)
                 mid = Ncorr // 2
@@ -531,6 +566,17 @@ class CorrelationTrigger(MainTrigger):
                 corr = corr[left:right]
                 begin_offset = left
 
+            self.custom_line(
+                "minicorr",
+                corr,
+                np.arange(
+                    trigger_begin + stride * (begin_offset),
+                    trigger_begin + stride * (begin_offset + len(corr)),
+                    stride,
+                ),
+                True,
+            )
+
             min_val = np.min(corr)
 
             # Only permit local maxima. This fixes triggering errors where the edge
@@ -540,6 +586,17 @@ class CorrelationTrigger(MainTrigger):
             corr[:-1][orig[:-1] < orig[1:]] = min_val
             corr[1:][orig[1:] < orig[:-1]] = min_val
             corr[0] = corr[-1] = min_val
+
+            self.custom_line(
+                "minicorr_local",
+                corr,
+                np.arange(
+                    trigger_begin + stride * (begin_offset),
+                    trigger_begin + stride * (begin_offset + len(corr)),
+                    stride,
+                ),
+                True,
+            )
 
             # Find optimal offset
             peak_offset = np.argmax(corr) + begin_offset  # type: int
