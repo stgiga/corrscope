@@ -124,7 +124,12 @@ class _Trigger(ABC, Generic[result]):
         return round(time * self._wave.smp_s)
 
     def custom_line(
-        self, name: str, data: np.ndarray, xs: Optional[np.ndarray], invert: bool = True
+        self,
+        name: str,
+        data: np.ndarray,
+        xs: np.ndarray,
+        absolute: bool,
+        invert: bool = True,
     ):
         """
         :param offset:
@@ -145,7 +150,9 @@ class _Trigger(ABC, Generic[result]):
         data = data / abs_max(data, 0.01) / 2
         if invert:
             data *= np.copysign(1, self._wave.amplification)
-        self._renderer.update_custom_line(name, self._wave_idx, self._stride, data, xs)
+        self._renderer.update_custom_line(
+            name, self._wave_idx, self._stride, data, xs, absolute
+        )
 
     def custom_vline(self, name: str, x: int, absolute: bool):
         """See above for `offset`."""
@@ -469,12 +476,20 @@ class CorrelationTrigger(MainTrigger):
             "data",
             data,
             np.arange(data_begin, data_begin + stride * data_nsubsmp, stride),
+            True,
         )
 
         # Use period to recompute slope finder (if enabled) and restrict trigger
         # diameter.
         period = get_period(data, self.subsmp_per_s, self.cfg.max_freq, self)
         cache.period = period * stride
+
+        self.custom_line(
+            "period",
+            np.array([-0.9, -0.9]),
+            np.array([-cache.period / 2, cache.period / 2]),
+            False,
+        )
 
         semitones = self._is_window_invalid(period)
         # If pitch changed...
@@ -505,6 +520,13 @@ class CorrelationTrigger(MainTrigger):
             trigger_radius = round(period * cfg.trigger_radius_periods)
         else:
             trigger_radius = None
+
+        self.custom_line(
+            "kernel",
+            corr_kernel,
+            np.arange(-self.A, self.B) * stride,
+            False,
+        )
 
         # Find correlation peak.
         peak_offset = correlate_valid(data, corr_kernel, trigger_radius)

@@ -935,7 +935,8 @@ class RendererFrontend(_RendererBackend, ABC):
         wave_idx: int,
         stride: int,
         data: np.ndarray,
-        xs: Optional[np.ndarray],
+        xs: np.ndarray,
+        absolute: bool,
     ):
         data = data.copy()
         key = (name, wave_idx)
@@ -943,7 +944,7 @@ class RendererFrontend(_RendererBackend, ABC):
         if key not in self._custom_lines:
             line = self._add_line_mono(wave_idx, stride, data)
             self._custom_lines[key] = line
-            if xs is not None:
+            if absolute:
                 self._absolute[wave_idx].append(line)
         else:
             line = self._custom_lines[key]
