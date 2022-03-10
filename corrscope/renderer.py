@@ -898,7 +898,7 @@ class RendererFrontend(_RendererBackend, ABC):
         self._update_main_lines = None
         self._custom_lines = {}  # type: Dict[Any, CustomLine]
         self._vlines = {}  # type: Dict[Any, CustomLine]
-        self._offsetable = defaultdict(list)
+        self._absolute = defaultdict(list)
 
     # Overrides implementations of _RendererBackend.
     def get_frame(self) -> ByteBuffer:
@@ -922,7 +922,7 @@ class RendererFrontend(_RendererBackend, ABC):
 
         self._update_main_lines(inputs)
 
-    _offsetable: DefaultDict[int, MutableSequence[CustomLine]]
+    _absolute: DefaultDict[int, MutableSequence[CustomLine]]
 
     def update_custom_line(
         self,
@@ -940,7 +940,7 @@ class RendererFrontend(_RendererBackend, ABC):
             line = self._add_line_mono(wave_idx, stride, data)
             self._custom_lines[key] = line
             if offset:
-                self._offsetable[wave_idx].append(line)
+                self._absolute[wave_idx].append(line)
         else:
             line = self._custom_lines[key]
 
@@ -954,7 +954,7 @@ class RendererFrontend(_RendererBackend, ABC):
             line = self._add_vline_mono(wave_idx, stride)
             self._vlines[key] = line
             if offset:
-                self._offsetable[wave_idx].append(line)
+                self._absolute[wave_idx].append(line)
         else:
             line = self._vlines[key]
 
@@ -964,7 +964,7 @@ class RendererFrontend(_RendererBackend, ABC):
     def offset_viewport(self, wave_idx: int, viewport_offset: float):
         line_offset = -viewport_offset
 
-        for line in self._offsetable[wave_idx]:
+        for line in self._absolute[wave_idx]:
             line.set_xdata(line.xdata + line_offset * line.stride)
 
     def _add_line_mono(
