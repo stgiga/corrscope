@@ -124,7 +124,7 @@ class _Trigger(ABC, Generic[result]):
         return round(time * self._wave.smp_s)
 
     def custom_line(
-        self, name: str, data: np.ndarray, offset: bool, invert: bool = True
+        self, name: str, data: np.ndarray, xs: Optional[np.ndarray], invert: bool = True
     ):
         """
         :param offset:
@@ -145,9 +145,7 @@ class _Trigger(ABC, Generic[result]):
         data = data / abs_max(data, 0.01) / 2
         if invert:
             data *= np.copysign(1, self._wave.amplification)
-        self._renderer.update_custom_line(
-            name, self._wave_idx, self._stride, data, offset=offset
-        )
+        self._renderer.update_custom_line(name, self._wave_idx, self._stride, data, xs)
 
     def custom_vline(self, name: str, x: int, absolute: bool):
         """See above for `offset`."""
@@ -156,11 +154,6 @@ class _Trigger(ABC, Generic[result]):
         self._renderer.update_vline(
             name, self._wave_idx, self._stride, x, absolute=absolute
         )
-
-    def move_viewport(self, offset: int):
-        if self._renderer is None:
-            return
-        self._renderer.move_viewport(self._wave_idx, offset)
 
     @abstractmethod
     def get_trigger(self, index: int, cache: "PerFrameCache") -> result:
@@ -472,7 +465,11 @@ class CorrelationTrigger(MainTrigger):
         # Remove mean from data
         data -= np.add.reduce(data) / data.size
 
-        self.custom_line("data", data, True)
+        self.custom_line(
+            "data",
+            data,
+            np.arange(data_begin, data_begin + stride * data_nsubsmp, stride),
+        )
 
         # Use period to recompute slope finder (if enabled) and restrict trigger
         # diameter.
@@ -533,8 +530,6 @@ class CorrelationTrigger(MainTrigger):
         self._update_buffer(aligned, cache)
 
         self._frames_since_spectrum += 1
-
-        self.move_viewport(peak_offset)
 
         # period: subsmp/cyc
         freq_estimate = self.subsmp_per_s / period if period else None

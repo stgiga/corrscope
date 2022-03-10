@@ -914,13 +914,18 @@ class RendererFrontend(_RendererBackend, ABC):
     # New methods.
     _update_main_lines: Optional[UpdateLines]
 
-    def update_main_lines(self, inputs: List[RenderInput]) -> None:
+    def update_main_lines(
+        self, inputs: List[RenderInput], trigger_samples: List[int]
+    ) -> None:
         datas = [input.data for input in inputs]
 
         if self._update_main_lines is None:
             self._update_main_lines = self.add_lines_stereo(datas, self.render_strides)
 
         self._update_main_lines(inputs)
+        assert len(datas) == len(trigger_samples)
+        for i, (data, trigger) in enumerate(zip(datas, trigger_samples)):
+            self.move_viewport(i, trigger)  # - len(data) / 2
 
     _absolute: DefaultDict[int, MutableSequence[CustomLine]]
 
@@ -930,8 +935,7 @@ class RendererFrontend(_RendererBackend, ABC):
         wave_idx: int,
         stride: int,
         data: np.ndarray,
-        *,
-        offset: bool = True,
+        xs: Optional[np.ndarray],
     ):
         data = data.copy()
         key = (name, wave_idx)
@@ -939,11 +943,13 @@ class RendererFrontend(_RendererBackend, ABC):
         if key not in self._custom_lines:
             line = self._add_line_mono(wave_idx, stride, data)
             self._custom_lines[key] = line
-            if offset:
+            if xs is not None:
                 self._absolute[wave_idx].append(line)
         else:
             line = self._custom_lines[key]
 
+        line.xdata = xs
+        line.set_xdata(xs)
         line.set_ydata(data)
 
     def update_vline(
@@ -961,17 +967,19 @@ class RendererFrontend(_RendererBackend, ABC):
         line.xdata = [x * stride] * 2
         line.set_xdata(line.xdata)
 
-    def move_viewport(self, wave_idx: int, viewport_offset: float):
-        line_offset = -viewport_offset
-
+    def move_viewport(self, wave_idx: int, viewport_left: float):
         for line in self._absolute[wave_idx]:
-            line.set_xdata(line.xdata + line_offset * line.stride)
+            line.xdata -= viewport_left
+            line.set_xdata(line.xdata)
 
     def _add_line_mono(
-        self, wave_idx: int, stride: int, dummy_data: np.ndarray
+        self,
+        wave_idx: int,
+        stride: int,
+        dummy_data: np.ndarray,
     ) -> CustomLine:
+        xs = np.zeros_like(dummy_data)
         ys = np.zeros_like(dummy_data)
-        xs = calc_xs(len(ys), stride)
         return self._add_xy_line_mono(wave_idx, xs, ys, stride)
 
     def _add_vline_mono(self, wave_idx: int, stride: int) -> CustomLine:
