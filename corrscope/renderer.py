@@ -947,13 +947,13 @@ class RendererFrontend(_RendererBackend, ABC):
         line.set_ydata(data)
 
     def update_vline(
-        self, name: str, wave_idx: int, stride: int, x: int, *, offset: bool = True
+        self, name: str, wave_idx: int, stride: int, x: int, *, absolute: bool = True
     ):
         key = (name, wave_idx)
         if key not in self._vlines:
             line = self._add_vline_mono(wave_idx, stride)
             self._vlines[key] = line
-            if offset:
+            if absolute:
                 self._absolute[wave_idx].append(line)
         else:
             line = self._vlines[key]

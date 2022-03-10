@@ -149,12 +149,12 @@ class _Trigger(ABC, Generic[result]):
             name, self._wave_idx, self._stride, data, offset=offset
         )
 
-    def custom_vline(self, name: str, x: int, offset: bool):
+    def custom_vline(self, name: str, x: int, absolute: bool):
         """See above for `offset`."""
         if self._renderer is None:
             return
         self._renderer.update_vline(
-            name, self._wave_idx, self._stride, x, offset=offset
+            name, self._wave_idx, self._stride, x, absolute=absolute
         )
 
     def move_viewport(self, offset: int):
