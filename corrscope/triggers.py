@@ -426,13 +426,14 @@ class CorrelationTrigger(MainTrigger):
 
         cfg = self.cfg
         if cfg.slope_strength:
-            slope_finder = np.zeros(self.A + self.B)
-
             slope_width = max(iround(cfg.slope_width * period), 1)
             slope_strength = cfg.slope_strength * cfg.buffer_falloff
 
-            slope_finder[self.A - slope_width : self.A] = -slope_strength
-            slope_finder[self.A : self.A + slope_width] = slope_strength
+            slope_finder = np.empty(self.A + self.B, dtype=f32)  # type: np.ndarray[f32]
+            slope_finder[: self.A] = -slope_strength / 2
+            slope_finder[self.A :] = slope_strength / 2
+
+            slope_finder *= windows.gaussian(self.A + self.B, std=slope_width)
             return slope_finder
         else:
             return None
@@ -528,9 +529,61 @@ class CorrelationTrigger(MainTrigger):
             False,
         )
 
+        self.custom_line(
+            "allowed",
+            corr_kernel,
+            np.arange(-self.A, self.B) * stride,
+            True,
+        )
+
+        def correlate_valid(
+            data: np.ndarray, corr_kernel: np.ndarray, radius: Optional[int]
+        ) -> int:
+            """Returns kernel offset (≥ 0) relative to data, which maximizes correlation.
+            kernel is not allowed to move past the boundaries of data.
+
+            If radius is set, the returned offset is limited to ±radius from the center of
+            correlation.
+            """
+            # returns double, not single/f32
+            corr = signal.correlate_valid(data, corr_kernel)
+            begin_offset = 0
+
+            self.custom_line(
+                "corr",
+                corr,
+                np.arange(trigger_begin, trigger_begin + stride * len(corr), stride),
+                True,
+            )
+
+            if radius is not None:
+                Ncorr = len(corr)
+                mid = Ncorr // 2
+
+                left = max(mid - radius, 0)
+                right = min(mid + radius + 1, Ncorr)
+
+                corr = corr[left:right]
+                begin_offset = left
+
+            self.custom_line(
+                "minicorr",
+                corr,
+                np.arange(
+                    trigger_begin + stride * (begin_offset),
+                    trigger_begin + stride * (begin_offset + len(corr)),
+                    stride,
+                ),
+                True,
+            )
+
+            # Find optimal offset
+            peak_offset = np.argmax(corr) + begin_offset  # type: int
+            return peak_offset
+
         # Find correlation peak.
         peak_offset = correlate_valid(data, corr_kernel, trigger_radius)
-        trigger = trigger_begin + (stride * peak_offset)
+        trigger = trigger_begin + stride * (peak_offset)
 
         del data
 
@@ -663,33 +716,6 @@ class CorrelationTrigger(MainTrigger):
         # Old buffer
         normalize_buffer(self._corr_kernel)
         self._corr_kernel = lerp(self._corr_kernel, data, responsiveness)
-
-
-def correlate_valid(
-    data: np.ndarray, corr_kernel: np.ndarray, radius: Optional[int]
-) -> int:
-    """Returns kernel offset (≥ 0) relative to data, which maximizes correlation.
-    kernel is not allowed to move past the boundaries of data.
-
-    If radius is set, the returned offset is limited to ±radius from the center of
-    correlation.
-    """
-    corr = signal.correlate_valid(data, corr_kernel)  # returns double, not single/f32
-    begin_offset = 0
-
-    if radius is not None:
-        Ncorr = len(corr)
-        mid = Ncorr // 2
-
-        left = max(mid - radius, 0)
-        right = min(mid + radius + 1, Ncorr)
-
-        corr = corr[left:right]
-        begin_offset = left
-
-    # Find optimal offset
-    peak_offset = np.argmax(corr) + begin_offset  # type: int
-    return peak_offset
 
 
 @attr.dataclass
