@@ -472,6 +472,8 @@ class CorrelationTrigger(MainTrigger):
         # Remove mean from data
         data -= np.add.reduce(data) / data.size
 
+        self.custom_line("data", data, True)
+
         # Use period to recompute slope finder (if enabled) and restrict trigger
         # diameter.
         period = get_period(data, self.subsmp_per_s, self.cfg.max_freq, self)
